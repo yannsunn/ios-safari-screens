@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# 使い方は README.md。入力は環境変数 URLS / DEVICE / LABEL で受け取る（式展開をシェルに直接埋めない）
+set -euo pipefail
+
+mkdir -p out
+read -r -a urls <<< "$URLS"
+if (( ${#urls[@]} == 0 || ${#urls[@]} > 20 )); then
+  echo "URL は1〜20件で指定してください（${#urls[@]}件）" >&2
+  exit 1
+fi
+for url in "${urls[@]}"; do
+  [[ "$url" =~ ^https://[A-Za-z0-9.-]+(/[^[:space:]]*)?$ ]] || { echo "https の URL ではありません: $url" >&2; exit 1; }
+done
+
+xcodebuild -version | tee out/environment.txt
+udid=$(xcrun simctl list devices available -j | python3 -c '
+import json, os, sys
+want = os.environ.get("DEVICE", "")
+devs = [d | {"runtime": r} for r, ds in json.load(sys.stdin)["devices"].items()
+        if "iOS" in r for d in ds if d["name"].startswith("iPhone")]
+devs.sort(key=lambda d: d["runtime"], reverse=True)
+pick = next((d for d in devs if want and want in d["name"]), devs[0])
+print(pick["udid"])
+print("device: %s / %s" % (pick["name"], pick["runtime"]), file=sys.stderr)
+' 2>>out/environment.txt)
+cat out/environment.txt
+
+xcrun simctl boot "$udid"
+xcrun simctl bootstatus "$udid" -b
+xcrun simctl status_bar "$udid" override --time "9:41" --batteryState charged --batteryLevel 100 || true
+
+i=0
+for url in "${urls[@]}"; do
+  i=$((i + 1))
+  name=$(printf '%02d' "$i")
+  xcrun simctl openurl "$udid" "$url"
+  # 読み込み・フォント・画像の表示を待つ（Safari の初回起動分を含めて長めに取る）
+  if (( i == 1 )); then sleep 20; else sleep 10; fi
+  xcrun simctl io "$udid" screenshot "out/${name}.png"
+  printf '%s\t%s\n' "$name" "$url" >> out/index.tsv
+  echo "shot $name $url"
+done

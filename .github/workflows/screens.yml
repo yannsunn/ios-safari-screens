@@ -1,0 +1,45 @@
+# iPhone シミュレーターの Safari で公開ページを開き、1画面目を撮影する。
+# 公開リポジトリでは標準の macOS ランナーが無料（GitHub Docs「GitHub Actions の課金」）。
+# 秘密値は一切使わない。撮ってよいのは誰でも見られる公開ページだけ。
+name: iOS Safari screenshots
+
+on:
+  workflow_dispatch:
+    inputs:
+      label:
+        description: "保存名（例: koyomi-20260924）"
+        required: true
+        default: "screens"
+      urls:
+        description: "撮影するURL（スペース区切り・https のみ・最大20件）"
+        required: true
+      device:
+        description: "端末名に含まれる語（例: iPhone 17 / iPhone SE）。無ければ最初の iPhone"
+        required: false
+        default: "iPhone 17"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: screens
+  cancel-in-progress: false
+
+jobs:
+  shoot:
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Shoot
+        env:
+          URLS: ${{ inputs.urls }}
+          DEVICE: ${{ inputs.device }}
+          LABEL: ${{ inputs.label }}
+        run: bash scripts/shoot.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ${{ inputs.label }}
+          path: out/
+          retention-days: 14
