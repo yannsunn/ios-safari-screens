@@ -29,8 +29,19 @@ print("device: %s / %s" % (pick["name"], pick["runtime"]), file=sys.stderr)
 ' 2>>out/environment.txt)
 cat out/environment.txt
 
+lang="${LANG_CODE:-ja}"
+[[ "$lang" =~ ^[a-z]{2}$ ]] || { echo "lang は2文字の言語コードで指定してください: $lang" >&2; exit 1; }
+region=$([[ "$lang" == "ja" ]] && echo "ja_JP" || echo "${lang}_US")
+
+# 言語は起動中に書き換えても Safari に効かないため、1回起動して設定→再起動する
 xcrun simctl boot "$udid"
 xcrun simctl bootstatus "$udid" -b
+xcrun simctl spawn "$udid" defaults write -g AppleLanguages -array "$lang"
+xcrun simctl spawn "$udid" defaults write -g AppleLocale -string "$region"
+xcrun simctl shutdown "$udid"
+xcrun simctl boot "$udid"
+xcrun simctl bootstatus "$udid" -b
+echo "lang: $lang / $region" >> out/environment.txt
 xcrun simctl status_bar "$udid" override --time "9:41" --batteryState charged --batteryLevel 100 || true
 
 # 起動完了の直後はまだ Safari を開けないことがあるので少し待つ
