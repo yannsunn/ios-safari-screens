@@ -33,14 +33,36 @@ xcrun simctl boot "$udid"
 xcrun simctl bootstatus "$udid" -b
 xcrun simctl status_bar "$udid" override --time "9:41" --batteryState charged --batteryLevel 100 || true
 
+# 起動完了の直後はまだ Safari を開けないことがあるので少し待つ
+sleep 20
+
 i=0
+failed=0
 for url in "${urls[@]}"; do
   i=$((i + 1))
   name=$(printf '%02d' "$i")
-  xcrun simctl openurl "$udid" "$url"
+  # 起動直後は openurl が時間切れになることがある（2026-09-24 実測）。3回まで再試行し、
+  # それでも開けない URL は記録して次へ進む
+  opened=0
+  for attempt in 1 2 3; do
+    if xcrun simctl openurl "$udid" "$url"; then opened=1; break; fi
+    echo "openurl 失敗（${attempt}回目）: $url" >&2
+    sleep 15
+  done
+  if (( opened == 0 )); then
+    printf '%s\t%s\tFAILED\n' "$name" "$url" >> out/index.tsv
+    failed=$((failed + 1))
+    continue
+  fi
   # 読み込み・フォント・画像の表示を待つ（Safari の初回起動分を含めて長めに取る）
   if (( i == 1 )); then sleep 20; else sleep 10; fi
   xcrun simctl io "$udid" screenshot "out/${name}.png"
   printf '%s\t%s\n' "$name" "$url" >> out/index.tsv
   echo "shot $name $url"
 done
+
+# 1件でも開けなかった URL があれば、撮れた画像は保存したうえで失敗として終える
+if (( failed > 0 )); then
+  echo "開けなかった URL: ${failed}件（out/index.tsv 参照）" >&2
+  exit 1
+fi
