@@ -36,6 +36,13 @@ xcrun simctl status_bar "$udid" override --time "9:41" --batteryState charged --
 # 起動完了の直後はまだ Safari を開けないことがあるので少し待つ
 sleep 20
 
+# Safari 初回起動の案内（吹き出し）が1枚目を隠すため、撮影前に1回開いて消化させる（空撮り）
+for attempt in 1 2 3; do
+  xcrun simctl openurl "$udid" "${urls[0]}" && break
+  sleep 15
+done
+sleep 20
+
 i=0
 failed=0
 for url in "${urls[@]}"; do
@@ -55,7 +62,7 @@ for url in "${urls[@]}"; do
     continue
   fi
   # 読み込み・フォント・画像の表示を待つ（Safari の初回起動分を含めて長めに取る）
-  if (( i == 1 )); then sleep 20; else sleep 10; fi
+  sleep 10
   xcrun simctl io "$udid" screenshot "out/${name}.png"
   printf '%s\t%s\n' "$name" "$url" >> out/index.tsv
   echo "shot $name $url"
