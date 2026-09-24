@@ -16,5 +16,8 @@ gh run watch -R yannsunn/ios-safari-screens
 gh run download -R yannsunn/ios-safari-screens -n koyomi-20260924 -D ./shots
 ```
 
+`fixtures/` の確認用ページは `http://localhost:8000/...` で撮れます（例: `http://localhost:8000/fortune/daily.html`
+＝本番の CSS とメニューを読み、ログイン中の下部タブを再現するページ）。
+
 `out/index.tsv` に番号と URL の対応、`out/environment.txt` に Xcode と端末・iOS の版が入ります。
 画像は14日で自動削除されます。

@@ -9,8 +9,12 @@ if (( ${#urls[@]} == 0 || ${#urls[@]} > 20 )); then
   exit 1
 fi
 for url in "${urls[@]}"; do
-  [[ "$url" =~ ^https://[A-Za-z0-9.-]+(/[^[:space:]]*)?$ ]] || { echo "https の URL ではありません: $url" >&2; exit 1; }
+  [[ "$url" =~ ^https://[A-Za-z0-9.-]+(/[^[:space:]]*)?$ || "$url" =~ ^http://localhost:8000/[^[:space:]]*$ ]] ||
+    { echo "https の URL（または http://localhost:8000/ の確認用ページ）ではありません: $url" >&2; exit 1; }
 done
+
+# fixtures/ の確認用ページを http://localhost:8000/ で配る（シミュレーターは Mac とネットワークを共有する）
+python3 -m http.server 8000 --directory fixtures >/dev/null 2>&1 &
 
 xcodebuild -version | tee out/environment.txt
 udid=$(xcrun simctl list devices available -j | python3 -c '
