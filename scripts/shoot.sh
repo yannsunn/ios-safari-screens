@@ -42,6 +42,7 @@ xcrun simctl shutdown "$udid"
 xcrun simctl boot "$udid"
 xcrun simctl bootstatus "$udid" -b
 echo "lang: $lang / $region" >> out/environment.txt
+echo "$udid" > out/udid.txt
 xcrun simctl status_bar "$udid" override --time "9:41" --batteryState charged --batteryLevel 100 || true
 
 # 起動完了の直後はまだ Safari を開けないことがあるので少し待つ

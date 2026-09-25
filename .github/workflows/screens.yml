@@ -17,6 +17,10 @@ on:
         description: "端末の言語（ja / en など）"
         required: false
         default: "ja"
+      login_urls:
+        description: "試験用アカウントでログインしてから撮るURL（任意・スペース区切り・コヨミボシのみ）"
+        required: false
+        default: ""
       device:
         description: "端末名に含まれる語（例: iPhone 17 / iPhone SE）。無ければ最初の iPhone"
         required: false
@@ -42,6 +46,22 @@ jobs:
           LANG_CODE: ${{ inputs.lang }}
           LABEL: ${{ inputs.label }}
         run: bash scripts/shoot.sh
+      - name: Shoot after login
+        if: ${{ inputs.login_urls != '' }}
+        env:
+          URLS: ${{ inputs.login_urls }}
+          LOGIN_URL: https://koyomiboshi.com/fortune/login.html
+          TEST_EMAIL: ${{ secrets.KOYOMI_TEST_EMAIL }}
+          TEST_PASSWORD: ${{ secrets.KOYOMI_TEST_PASSWORD }}
+        run: |
+          [ -n "$TEST_EMAIL" ] && [ -n "$TEST_PASSWORD" ] || { echo "Secret が未登録です"; exit 1; }
+          for url in $URLS; do
+            [[ "$url" =~ ^https://koyomiboshi\.com/[^[:space:]]*$ ]] || { echo "コヨミボシ以外は不可: $url"; exit 1; }
+          done
+          export UDID="$(cat out/udid.txt)"
+          pip3 install --quiet --break-system-packages selenium==4.* || pip3 install --quiet selenium==4.*
+          sudo safaridriver --enable
+          python3 scripts/login_shoot.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:

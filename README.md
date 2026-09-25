@@ -21,3 +21,9 @@ gh run download -R yannsunn/ios-safari-screens -n koyomi-20260924 -D ./shots
 
 `out/index.tsv` に番号と URL の対応、`out/environment.txt` に Xcode と端末・iOS の版が入ります。
 画像は14日で自動削除されます。
+
+## ログイン後の画面（コヨミボシのみ）
+
+`login_urls` に `https://koyomiboshi.com/...` を渡すと、Secrets（`KOYOMI_TEST_EMAIL` / `KOYOMI_TEST_PASSWORD`）の
+試験用アカウント（架空データ・無料・管理者なし）で Apple 公式の safaridriver からログインして撮ります（`login-NN.png`）。
+画面上のメールアドレスは撮る前に伏せます。Secrets は手動起動（書き込み権限のある人だけ）でしか使われません。
