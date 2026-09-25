@@ -33,6 +33,22 @@ for (const el of document.querySelectorAll("input")) {
 }
 """
 
+# iOS シミュレーターの Safari では send_keys で文字が入らない（2026-09-25 実測: 値が0文字）。
+# ページ内で値を入れ、input/change イベントで入力したことを知らせる
+FILL_JS = """
+const el = arguments[0];
+el.focus();
+el.value = arguments[1];
+el.dispatchEvent(new Event("input", { bubbles: true }));
+el.dispatchEvent(new Event("change", { bubbles: true }));
+return el.value.length;
+"""
+
+
+def fill(element, value):
+    return driver.execute_script(FILL_JS, element, value)
+
+
 opts = webdriver.SafariOptions()
 opts.set_capability("platformName", "iOS")
 opts.set_capability("safari:useSimulator", True)
@@ -64,18 +80,18 @@ try:
         driver.get(os.environ["PROBE_LOGIN_URL"])
         probe = "e2e-probe-Check@example.com"
         field = wait.until(ec.presence_of_element_located((By.ID, "email")))
-        field.send_keys(probe)
+        fill(field, probe)
         got = field.get_attribute("value")
         print("probe typed == value:", got == probe, "| len", len(got))
         pw = driver.find_element(By.ID, "password")
-        pw.send_keys("Abc123xyz")
+        fill(pw, "Abc123xyz")
         print("probe password len:", len(pw.get_attribute("value") or ""))
         print("probe submit enabled:", driver.find_element(By.ID, "submit").is_enabled())
         subprocess.run(["xcrun", "simctl", "io", udid, "screenshot", "out/probe-login.png"], check=True)
     if not driver_only:
         driver.get(login_url)
-        wait.until(ec.presence_of_element_located((By.ID, "email"))).send_keys(email)
-        driver.find_element(By.ID, "password").send_keys(password)
+        fill(wait.until(ec.presence_of_element_located((By.ID, "email"))), email)
+        fill(driver.find_element(By.ID, "password"), password)
         typed_ok = driver.find_element(By.ID, "email").get_attribute("value") == email
         print("email typed as-is:", typed_ok, flush=True)
         wait.until(ec.element_to_be_clickable((By.ID, "submit"))).click()
