@@ -45,6 +45,14 @@ return el.value.length;
 """
 
 
+# ボタンの click はシミュレーターで長押し（文字選択）として扱われ、送信されない（2026-09-25 実測）。
+# フォームの送信処理をページ内から呼ぶ
+SUBMIT_JS = """
+const form = document.getElementById("form");
+form.requestSubmit(document.getElementById("submit"));
+"""
+
+
 def fill(element, value):
     return driver.execute_script(FILL_JS, element, value)
 
@@ -87,6 +95,15 @@ try:
         fill(pw, "Abc123xyz")
         print("probe password len:", len(pw.get_attribute("value") or ""))
         print("probe submit enabled:", driver.find_element(By.ID, "submit").is_enabled())
+        # 存在しない架空アドレスで送信し、エラー表示が出る＝送信処理が動くことを確かめる
+        driver.execute_script(SUBMIT_JS)
+        try:
+            WebDriverWait(driver, 30).until(
+                lambda d: d.execute_script("return (document.getElementById('error')||{}).textContent || ''").strip()
+            )
+            print("probe submit fired: True", flush=True)
+        except Exception:
+            print("probe submit fired: False", flush=True)
         subprocess.run(["xcrun", "simctl", "io", udid, "screenshot", "out/probe-login.png"], check=True)
     if not driver_only:
         driver.get(login_url)
@@ -94,7 +111,8 @@ try:
         fill(driver.find_element(By.ID, "password"), password)
         typed_ok = driver.find_element(By.ID, "email").get_attribute("value") == email
         print("email typed as-is:", typed_ok, flush=True)
-        wait.until(ec.element_to_be_clickable((By.ID, "submit"))).click()
+        wait.until(ec.element_to_be_clickable((By.ID, "submit")))
+        driver.execute_script(SUBMIT_JS)
         try:
             wait.until(lambda d: "/login.html" not in d.current_url)
         except Exception:
