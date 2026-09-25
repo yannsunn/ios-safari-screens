@@ -66,18 +66,19 @@ jobs:
           export UDID="$(cat out/udid.txt)"
           pip3 install --quiet --break-system-packages selenium==4.* || pip3 install --quiet selenium==4.*
           sudo safaridriver --enable
-          python3 scripts/login_shoot.py
+          python3 -u scripts/login_shoot.py
       - name: Driver check (no login)
         if: ${{ inputs.driver_check }}
         env:
           URLS: ${{ inputs.urls }}
           LOGIN_URL: ""
           DRIVER_ONLY: "1"
+          PROBE_LOGIN_URL: https://koyomiboshi.com/fortune/login.html
         run: |
           export UDID="$(cat out/udid.txt)"
           pip3 install --quiet --break-system-packages selenium==4.* || pip3 install --quiet selenium==4.*
           sudo safaridriver --enable
-          python3 scripts/login_shoot.py
+          python3 -u scripts/login_shoot.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -55,17 +55,40 @@ def new_driver():
 
 
 driver = new_driver()
-print("driver ok")
+print("driver ok", flush=True)
 wait = WebDriverWait(driver, 60)
 failed = 0
 try:
+    if driver_only and os.environ.get("PROBE_LOGIN_URL"):
+        # 入力の確かめ（送信しない）: 打った文字がそのまま入るか（自動大文字化・自動修正の有無）
+        driver.get(os.environ["PROBE_LOGIN_URL"])
+        probe = "e2e-probe-Check@example.com"
+        field = wait.until(ec.presence_of_element_located((By.ID, "email")))
+        field.send_keys(probe)
+        got = field.get_attribute("value")
+        print("probe typed == value:", got == probe, "| len", len(got))
+        pw = driver.find_element(By.ID, "password")
+        pw.send_keys("Abc123xyz")
+        print("probe password len:", len(pw.get_attribute("value") or ""))
+        print("probe submit enabled:", driver.find_element(By.ID, "submit").is_enabled())
+        subprocess.run(["xcrun", "simctl", "io", udid, "screenshot", "out/probe-login.png"], check=True)
     if not driver_only:
         driver.get(login_url)
         wait.until(ec.presence_of_element_located((By.ID, "email"))).send_keys(email)
         driver.find_element(By.ID, "password").send_keys(password)
+        typed_ok = driver.find_element(By.ID, "email").get_attribute("value") == email
+        print("email typed as-is:", typed_ok, flush=True)
         wait.until(ec.element_to_be_clickable((By.ID, "submit"))).click()
-        wait.until(lambda d: "/login.html" not in d.current_url)
-        print("login ok")
+        try:
+            wait.until(lambda d: "/login.html" not in d.current_url)
+        except Exception:
+            # 失敗の手がかりを残す（メールは伏せてから撮る。パスワード欄は伏せ字表示）
+            err = driver.execute_script("return (document.getElementById('error')||{}).textContent || ''")
+            print("login failed; error text:", err.strip()[:200], flush=True)
+            driver.execute_script(MASK_JS, email)
+            subprocess.run(["xcrun", "simctl", "io", udid, "screenshot", "out/login-failed.png"], check=False)
+            raise
+        print("login ok", flush=True)
     with open("out/index.tsv", "a", encoding="utf-8") as idx:
         for i, url in enumerate(urls, 1):
             name = f"login-{i:02d}"
